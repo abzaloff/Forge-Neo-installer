@@ -7,7 +7,8 @@ echo.
 echo Forge Neo automatic installer
 echo.
 
-call :ensure_winget
+set "HAS_WINGET=0"
+call :detect_winget
 if errorlevel 1 exit /b 1
 
 call :ensure_git
@@ -238,14 +239,28 @@ echo ERROR: Failed to write helper bat files.
 pause
 exit /b 1
 
-:ensure_winget
+:detect_winget
 where winget >nul 2>nul
-if not errorlevel 1 exit /b 0
+if not errorlevel 1 (
+    set "HAS_WINGET=1"
+    echo winget found.
+    exit /b 0
+)
 
-echo ERROR: winget is required to install missing dependencies automatically.
-echo Install "App Installer" from Microsoft Store, then run this file again.
-pause
-exit /b 1
+echo winget was not found.
+echo.
+echo You can install App Installer from Microsoft Store and then run this installer again:
+echo https://apps.microsoft.com/detail/9nblggh4nns1
+echo.
+choice /C YN /M "Continue installation without winget? Y/N"
+if errorlevel 2 (
+    echo Installation cancelled.
+    pause
+    exit /b 1
+)
+
+echo Continuing without winget. The installer will use direct downloads as a fallback.
+exit /b 0
 
 :ensure_git
 where git >nul 2>nul
@@ -254,15 +269,54 @@ if not errorlevel 1 (
     exit /b 0
 )
 
-echo Git not found. Installing Git...
+if "%HAS_WINGET%"=="1" goto install_git_with_winget
+goto install_git_direct
+
+:install_git_with_winget
+echo Git not found. Installing Git with winget...
 winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements
 if errorlevel 1 (
     echo ERROR: Git installation failed.
     pause
     exit /b 1
 )
+goto verify_git
+
+:install_git_direct
+echo Git not found. Downloading Git for Windows installer...
+set "GIT_INSTALLER=%TEMP%\forge-neo-git-installer.exe"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $release=Invoke-RestMethod -Uri 'https://api.github.com/repos/git-for-windows/git/releases/latest' -Headers @{'User-Agent'='ForgeNeoInstaller'}; $asset=$release.assets | Where-Object { $_.name -match '^Git-[0-9].*-64-bit\.exe$' } | Select-Object -First 1; if (-not $asset) { throw 'Git for Windows installer asset was not found.' }; Invoke-WebRequest -Uri $asset.browser_download_url -OutFile '%GIT_INSTALLER%'"
+if errorlevel 1 (
+    echo ERROR: Git installer download failed.
+    pause
+    exit /b 1
+)
+
+if not exist "%GIT_INSTALLER%" (
+    echo ERROR: Git installer was not downloaded.
+    pause
+    exit /b 1
+)
+
+echo Installing Git...
+"%GIT_INSTALLER%" /VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS
+if errorlevel 1 (
+    echo ERROR: Git installation failed.
+    pause
+    exit /b 1
+)
+
+:verify_git
 
 call :refresh_path
+where git >nul 2>nul
+if errorlevel 1 (
+    if exist "%ProgramFiles%\Git\cmd\git.exe" set "PATH=%ProgramFiles%\Git\cmd;%PATH%"
+)
+where git >nul 2>nul
+if errorlevel 1 (
+    if exist "%ProgramFiles(x86)%\Git\cmd\git.exe" set "PATH=%ProgramFiles(x86)%\Git\cmd;%PATH%"
+)
 where git >nul 2>nul
 if errorlevel 1 (
     echo ERROR: Git installation did not complete or git.exe is not available in PATH.
@@ -281,13 +335,29 @@ if not errorlevel 1 (
     exit /b 0
 )
 
-echo UV not found. Installing UV...
+if "%HAS_WINGET%"=="1" goto install_uv_with_winget
+goto install_uv_direct
+
+:install_uv_with_winget
+echo UV not found. Installing UV with winget...
 winget install --id astral-sh.uv -e --source winget --accept-package-agreements --accept-source-agreements
 if errorlevel 1 (
     echo ERROR: UV installation failed.
     pause
     exit /b 1
 )
+goto configure_uv_path
+
+:install_uv_direct
+echo UV not found. Installing UV from the official installer script...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-RestMethod -Uri 'https://astral.sh/uv/install.ps1' | Invoke-Expression"
+if errorlevel 1 (
+    echo ERROR: UV installation failed.
+    pause
+    exit /b 1
+)
+
+:configure_uv_path
 
 set "UV_BIN=%USERPROFILE%\.local\bin"
 call :add_user_path "%UV_BIN%"
@@ -341,14 +411,48 @@ if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\VC\Tools\M
 )
 
 echo Visual Studio C++ Build Tools not found.
-echo Installing Visual Studio 2022 Build Tools. This can take a long time and may require administrator approval.
-winget install --id Microsoft.VisualStudio.2022.BuildTools -e --source winget --accept-package-agreements --accept-source-agreements --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
-if errorlevel 1 (
+if "%HAS_WINGET%"=="1" goto install_build_tools_with_winget
+goto install_build_tools_direct
+
+:install_build_tools_with_winget
+echo Installing Visual Studio 2022 Build Tools with winget. This can take a long time and may require administrator approval.
+winget install --id Microsoft.VisualStudio.2022.BuildTools -e --source winget --accept-package-agreements --accept-source-agreements --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools"
+set "BUILD_TOOLS_INSTALL_EXIT=%errorlevel%"
+if not "%BUILD_TOOLS_INSTALL_EXIT%"=="0" if not "%BUILD_TOOLS_INSTALL_EXIT%"=="3010" (
     echo ERROR: Visual Studio Build Tools installation failed.
     echo Install "Visual Studio 2022 Build Tools" with "Desktop development with C++", then run this installer again.
     pause
     exit /b 1
 )
+goto verify_build_tools_after_install
+
+:install_build_tools_direct
+echo Downloading Visual Studio 2022 Build Tools installer...
+set "VS_BUILDTOOLS_INSTALLER=%TEMP%\forge-neo-vs_BuildTools.exe"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vs_BuildTools.exe' -OutFile '%VS_BUILDTOOLS_INSTALLER%'"
+if errorlevel 1 (
+    echo ERROR: Visual Studio Build Tools installer download failed.
+    pause
+    exit /b 1
+)
+
+if not exist "%VS_BUILDTOOLS_INSTALLER%" (
+    echo ERROR: Visual Studio Build Tools installer was not downloaded.
+    pause
+    exit /b 1
+)
+
+echo Installing Visual Studio 2022 Build Tools. This can take a long time and may require administrator approval.
+"%VS_BUILDTOOLS_INSTALLER%" --wait --passive --add Microsoft.VisualStudio.Workload.VCTools --norestart
+set "BUILD_TOOLS_INSTALL_EXIT=%errorlevel%"
+if not "%BUILD_TOOLS_INSTALL_EXIT%"=="0" if not "%BUILD_TOOLS_INSTALL_EXIT%"=="3010" (
+    echo ERROR: Visual Studio Build Tools installation failed.
+    echo Install "Visual Studio 2022 Build Tools" with "Desktop development with C++", then run this installer again.
+    pause
+    exit /b 1
+)
+
+:verify_build_tools_after_install
 
 set "BUILD_TOOLS_FOUND="
 if exist "%VSWHERE%" (

@@ -9,6 +9,7 @@ The goal of this installer is to make the setup process usable for people who do
 `install-forge-neo.bat` automatically:
 
 - checks for `winget`
+- uses direct downloads as a fallback when `winget` is missing
 - installs Git if it is missing
 - installs UV if it is missing
 - checks for Visual Studio C++ Build Tools
@@ -26,9 +27,8 @@ The Forge Neo repository is installed into `sd-webui-forge-neo`.
 
 - Windows 10 or Windows 11
 - Internet connection
-- `winget` installed and available in PATH
 
-`winget` is normally included with the Microsoft App Installer package. If the installer says that `winget` is missing, install **App Installer** from Microsoft Store and run the installer again.
+`winget` is used when available because it is the cleanest installation path on modern Windows. If `winget` is missing, the installer offers two choices: install App Installer from Microsoft Store and run the installer again, or continue without `winget` using direct downloads from official sources.
 
 ## How To Install
 
@@ -87,7 +87,7 @@ Use this when dependencies are broken, PyTorch needs a clean reinstall, or the e
 
 Some Python packages, such as `insightface`, may need Microsoft C++ Build Tools to compile native extensions.
 
-The installer checks for Visual Studio 2022 C++ Build Tools. If they are missing, it installs `Microsoft.VisualStudio.2022.BuildTools` with `Microsoft.VisualStudio.Workload.VCTools`.
+The installer checks for Visual Studio 2022 C++ Build Tools. If they are missing, it installs `Microsoft.VisualStudio.2022.BuildTools` with the minimal `Microsoft.VisualStudio.Workload.VCTools` workload.
 
 This step can take a long time and may require administrator approval. If Windows asks for a restart, restart the computer and run `install-forge-neo.bat` again.
 
@@ -101,7 +101,7 @@ This step can take a long time and may require administrator approval. If Window
 
 ### `winget` is missing
 
-Install **App Installer** from Microsoft Store, then run `install-forge-neo.bat` again.
+The installer shows the App Installer link and asks whether to continue without `winget`. Choose `Y` to use direct downloads, or choose `N` to stop, install **App Installer** from Microsoft Store, and run `install-forge-neo.bat` again.
 
 ### Git or UV was installed but still not found
 
