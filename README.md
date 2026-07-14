@@ -13,7 +13,7 @@ The goal of this installer is to make the setup process usable for people who do
 - installs Git if it is missing
 - installs UV if it is missing
 - checks for Visual Studio C++ Build Tools
-- installs Visual Studio 2022 Build Tools if the C++ toolchain is missing
+- offers to install Visual Studio 2022 Build Tools if the C++ toolchain is missing
 - clones Forge Neo from the `neo` branch of `sd-webui-forge-classic`
 - creates a Python 3.13 virtual environment with UV
 - creates `webui-user.bat` with the recommended Forge Neo launch arguments
@@ -87,7 +87,11 @@ Use this when dependencies are broken, PyTorch needs a clean reinstall, or the e
 
 Some Python packages, such as `insightface`, may need Microsoft C++ Build Tools to compile native extensions.
 
-The installer checks for Visual Studio 2022 C++ Build Tools. If they are missing, it installs `Microsoft.VisualStudio.2022.BuildTools` with the minimal `Microsoft.VisualStudio.Workload.VCTools` workload.
+The installer checks for Visual Studio 2022 C++ Build Tools. If they are missing, it asks whether to install them. Build Tools can take much longer than the rest of the setup and are mainly needed for Python packages that compile native extensions, such as `insightface`.
+
+If accepted, the installer installs `Microsoft.VisualStudio.2022.BuildTools` with the minimal `Microsoft.VisualStudio.Workload.VCTools` workload.
+
+If skipped, Forge Neo installation continues without Build Tools. You can install them later if a package requires native compilation.
 
 This step can take a long time and may require administrator approval. If Windows asks for a restart, restart the computer and run `install-forge-neo.bat` again.
 

@@ -285,7 +285,7 @@ goto verify_git
 :install_git_direct
 echo Git not found. Downloading Git for Windows installer...
 set "GIT_INSTALLER=%TEMP%\forge-neo-git-installer.exe"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $release=Invoke-RestMethod -Uri 'https://api.github.com/repos/git-for-windows/git/releases/latest' -Headers @{'User-Agent'='ForgeNeoInstaller'}; $asset=$release.assets | Where-Object { $_.name -match '^Git-[0-9].*-64-bit\.exe$' } | Select-Object -First 1; if (-not $asset) { throw 'Git for Windows installer asset was not found.' }; Invoke-WebRequest -Uri $asset.browser_download_url -OutFile '%GIT_INSTALLER%'"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $page=(Invoke-WebRequest -UseBasicParsing -Uri 'https://git-scm.com/install/windows').Content; $match=[regex]::Match($page, 'https://github\.com/git-for-windows/git/releases/download/[^< ]+/Git-[^< ]+-64-bit\.exe'); if (-not $match.Success) { throw 'Git for Windows installer link was not found.' }; Invoke-WebRequest -UseBasicParsing -Uri $match.Value -OutFile '%GIT_INSTALLER%'"
 if errorlevel 1 (
     echo ERROR: Git installer download failed.
     pause
@@ -411,6 +411,14 @@ if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\VC\Tools\M
 )
 
 echo Visual Studio C++ Build Tools not found.
+echo Installing Visual Studio Build Tools can take much longer than the rest of the setup.
+echo They are only needed for Python packages that compile native extensions, such as insightface.
+choice /C YN /M "Install Visual Studio C++ Build Tools now? Y/N"
+if errorlevel 2 (
+    echo Skipping Visual Studio C++ Build Tools installation.
+    exit /b 0
+)
+
 if "%HAS_WINGET%"=="1" goto install_build_tools_with_winget
 goto install_build_tools_direct
 
