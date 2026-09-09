@@ -69,7 +69,7 @@ if errorlevel 2 goto build_commandline_args
 set "FLASH_FLAG= --flash"
 
 :build_commandline_args
-set "COMMANDLINE_ARGS=--uv --nunchaku --cuda-malloc --reserve-vram 2 --tiled-conv2d 512 --theme dark%SAGE_FLAG%%FLASH_FLAG%"
+set "COMMANDLINE_ARGS=--uv --cuda-malloc --reserve-vram 2 --tiled-conv2d 512 --theme dark%SAGE_FLAG%%FLASH_FLAG%"
 
 (
     echo @echo off
